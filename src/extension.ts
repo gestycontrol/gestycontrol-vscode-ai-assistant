@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
-import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
-	let disposable = vscode.commands.registerCommand('extension.processFiles', async (uriList?: vscode.Uri[]) => {
+	const processFilesWithAI = async (uris: vscode.Uri[]) => {
 		const apiKey = await getApiKey();
 
 		if (!apiKey) {
@@ -12,54 +11,34 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		let files: vscode.Uri[] = [];
+		const command = await vscode.window.showInputBox({
+			prompt: 'Please provide a command for the AI',
+			ignoreFocusOut: true,
+			value: 'Improve its readability',
+		}) || 'Improve its readability';
 
-		console.log(`Received URIs: ${uriList?.length || 0}`);
+		const increment = (1 / uris.length) * 100;
 
-		if (uriList && uriList.length > 0) {
-			for (const uri of uriList) {
-				const stat = await vscode.workspace.fs.stat(uri);
-
-				if (stat.type === vscode.FileType.File) {
-					console.log(`Found file: ${uri.fsPath}`);
-					files.push(uri);
-				} else if (stat.type === vscode.FileType.Directory) {
-					console.log(`Found directory: ${uri.fsPath}`);
-					const folderFiles = await getFilesInFolder(uri.fsPath);
-					console.log(`Found ${folderFiles.length} files in directory`);
-					files = files.concat(folderFiles);
-				}
-			}
-		} else if (vscode.window.activeTextEditor?.document.uri) {
-			files = [vscode.window.activeTextEditor.document.uri];
-		}
-
-		console.log(`Total files to process: ${files.length}`);
-
-		if (files.length === 0) {
-			vscode.window.showErrorMessage('No valid files selected for processing.');
-			return;
-		}
-
-		await vscode.window.withProgress({
+		const progressOptions: vscode.ProgressOptions = {
 			location: vscode.ProgressLocation.Notification,
-			title: `Processing ${files.length} file(s) with AI assistant...`,
-			cancellable: false
-		}, async (progress) => {
-			for (let i = 0; i < files.length; i++) {
-				const fileUri = files[i];
-				if (!fileUri) {
-					vscode.window.showErrorMessage(`File ${i + 1} is undefined. Skipping.`);
-					continue;
-				}
+			title: 'Processing files with AI',
+			cancellable: true,
+		};
 
-				progress.report({ message: `Processing file ${i + 1} of ${files.length}...` });
-				console.log(`Processing file ${i + 1} of ${files.length}`);
+		vscode.window.withProgress(progressOptions, async (progress, cancellationToken) => {
+			for (let i = 0; i < uris.length; i++) {
+				const uri = uris[i];
+				if (cancellationToken.isCancellationRequested) {
+					break;
+				}
 				try {
-					const document = await vscode.workspace.openTextDocument(fileUri);
+					progress.report({
+						message: `Processing file ${i + 1}/${uris.length}`,
+					});
+					const document = await vscode.workspace.openTextDocument(uri);
 					const text = document.getText();
 
-					const aiResponse = await processWithAI(text, apiKey);
+					const aiResponse = await processWithAI(text, apiKey, command);
 
 					const edit = new vscode.WorkspaceEdit();
 					edit.replace(document.uri, new vscode.Range(
@@ -68,20 +47,43 @@ export function activate(context: vscode.ExtensionContext) {
 					), aiResponse);
 					await vscode.workspace.applyEdit(edit);
 
-					vscode.window.showInformationMessage(`File ${document.uri.fsPath} was processed by AI.`);
-
 					await vscode.commands.executeCommand('editor.action.formatDocument', document);
 
-				} catch (error) {
-					vscode.window.showErrorMessage(`Error processing file ${fileUri.fsPath}: ${error.message}`);
+				} catch (exception) {
+					vscode.window.showWarningMessage(`Could not process file ${uri.fsPath}`);
+				}
+				progress.report({
+					increment: increment,
+				});
+			}
+		});
+	};
+
+	const getRecursiveUris = async (uris: vscode.Uri[]) => {
+		let outputUris: vscode.Uri[] = [];
+		for (const uri of uris) {
+			if (fs.existsSync(uri.fsPath)) {
+				if (fs.lstatSync(uri.fsPath).isDirectory()) {
+					const relativePattern = new vscode.RelativePattern(uri.fsPath, '**/*');
+					outputUris = [...outputUris, ...await vscode.workspace.findFiles(relativePattern)];
+				} else {
+					outputUris.push(uri);
 				}
 			}
+		}
+		return outputUris;
+	};
 
-			return;
-		});
-	});
+	context.subscriptions.push(
+		vscode.commands.registerCommand('extension.processFilesFromExplorerContext', async (clickedFile: vscode.Uri, selectedFiles: vscode.Uri[]) => {
+			const uris = await getRecursiveUris(selectedFiles || [clickedFile]);
+			await processFilesWithAI(uris);
+		}),
 
-	context.subscriptions.push(disposable);
+		vscode.commands.registerCommand('extension.processFileFromEditorContext', async (clickedFile: vscode.Uri) => {
+			await processFilesWithAI([clickedFile]);
+		})
+	);
 }
 
 async function getApiKey(): Promise<string | undefined> {
@@ -104,28 +106,7 @@ async function getApiKey(): Promise<string | undefined> {
 	return apiKey;
 }
 
-async function getFilesInFolder(folderPath: string): Promise<vscode.Uri[]> {
-	let files: vscode.Uri[] = [];
-
-	async function readDirectory(directory: string): Promise<void> {
-		const dirEntries = await fs.promises.readdir(directory, { withFileTypes: true });
-
-		for (const entry of dirEntries) {
-			const fullPath = path.join(directory, entry.name);
-
-			if (entry.isDirectory()) {
-				await readDirectory(fullPath);
-			} else if (entry.isFile()) {
-				files.push(vscode.Uri.file(fullPath));
-			}
-		}
-	}
-
-	await readDirectory(folderPath);
-	return files;
-}
-
-async function processWithAI(text: string, apiKey: string): Promise<string> {
+async function processWithAI(text: string, apiKey: string, command: string): Promise<string> {
 	try {
 		const inputTokenCount = Math.ceil(text.length / 4);
 		const maxTotalTokens = 8192;
@@ -134,7 +115,7 @@ async function processWithAI(text: string, apiKey: string): Promise<string> {
 		const response = await axios.post('https://api.openai.com/v1/chat/completions', {
 			model: 'gpt-4',
 			messages: [
-				{ role: 'user', content: `Please process the following code and improve its readability. Return the full code, without adding conversational notes:\n\n${text}` }
+				{ role: 'user', content: `Please process the following code and ${command}. Use trailing commas when possible if the language supports it (never for function arguments). Avoid changing line breaks.\n\n${text}` }
 			],
 			max_tokens: maxOutputTokens,
 			temperature: 0.7

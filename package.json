@@ -1,32 +1,39 @@
 {
   "name": "gestycontrol-vscode-ai-assistant",
-  "displayName": "gestycontrol.vscode-ai-assistant",
-  "description": "Apply massive actions with an AI assistant over sets of files",
-  "version": "0.0.1",
+  "displayName": "Gestycontrol AI Assistant",
+  "description": "Apply AI processing to multiple files via context menus",
+  "version": "1.0.0",
+  "publisher": "Gestycontrol",
   "engines": {
-    "vscode": "^1.93.0"
+    "vscode": "^1.60.0"
   },
-  "categories": [
-    "Other"
+  "activationEvents": [
+    "onCommand:extension.processFilesFromExplorerContext",
+    "onCommand:extension.processFileFromEditorContext"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "extension.processFiles",
+        "command": "extension.processFilesFromExplorerContext",
+        "title": "Process with AI"
+      },
+      {
+        "command": "extension.processFileFromEditorContext",
         "title": "Process with AI"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "command": "extension.processFiles",
-          "group": "z_navigation"
+          "command": "extension.processFilesFromExplorerContext",
+          "when": "explorerResourceIsFolder || resource",
+          "group": "navigation"
         }
       ],
       "editor/title": [
         {
-          "command": "extension.processFiles",
+          "command": "extension.processFileFromEditorContext",
           "group": "navigation"
         }
       ]

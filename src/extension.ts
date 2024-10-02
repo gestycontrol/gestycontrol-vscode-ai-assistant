@@ -114,7 +114,7 @@ async function processWithAI(text: string, apiKey: string, command: string): Pro
 		const response = await axios.post('https://api.openai.com/v1/chat/completions', {
 			model: 'gpt-4',
 			messages: [
-				{ role: 'user', content: `Please process the following code and ${command}. Use trailing commas when possible if the language supports it (never for function arguments).\n\n${text}` }
+				{ role: 'user', content: `Please process the following code and ${command}. Return the full file without talking about it. Use trailing commas when possible if the language supports it (never for function arguments). Do not add new code comments.\n\n${text}` }
 			],
 			max_tokens: maxOutputTokens,
 			temperature: 0.7
@@ -126,7 +126,13 @@ async function processWithAI(text: string, apiKey: string, command: string): Pro
 		});
 
 		if (response.data?.choices?.[0]?.message) {
-			return response.data.choices[0].message.content.trim();
+			let responseTextBlocks = response.data.choices[0].message.content.trim().split('```');
+
+			if (responseTextBlocks.length === 1) {
+				return responseTextBlocks[0];
+			} else {
+				return responseTextBlocks[1];
+			}
 		} else {
 			throw new Error('Invalid response structure from AI API.');
 		}

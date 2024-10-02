@@ -11,35 +11,25 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "AI Assistant",
-      "properties": {
-        "aiAssistant.apiKey": {
-          "type": "string",
-          "default": "",
-          "description": "API key for the AI assistant to make requests"
-        }
-      }
-    },
     "commands": [
       {
         "command": "extension.processFiles",
-        "title": "Process current file with AI assistant"
+        "title": "Process with AI"
       }
     ],
     "menus": {
       "explorer/context": [
-            {
-                "command": "extension.processFiles",
-                "group": "navigation"
-            }
-        ],
-        "editor/title": [
-            {
-                "command": "extension.processFiles",
-                "group": "navigation"
-            }
-        ]
+        {
+          "command": "extension.processFiles",
+          "group": "z_navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "extension.processFiles",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {

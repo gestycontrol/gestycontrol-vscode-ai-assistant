@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
-	let disposable = vscode.commands.registerCommand('extension.processFiles', async (uri?: vscode.Uri[]) => {
+	let disposable = vscode.commands.registerCommand('extension.processFiles', async (uriList?: vscode.Uri[]) => {
 		const apiKey = await getApiKey();
 
 		if (!apiKey) {
@@ -10,31 +12,55 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// If multiple files are selected from the context menu
-		const files = uri ? uri : [vscode.window.activeTextEditor?.document.uri];
+		let files: vscode.Uri[] = [];
 
-		if (!files || files.length === 0) {
-			vscode.window.showInformationMessage('No files selected for processing.');
+		if (uriList && uriList.length > 0) {
+			console.log(`Received ${uriList.length} URIs from the context menu`);
+
+			for (const uri of uriList) {
+				const stat = await vscode.workspace.fs.stat(uri);
+
+				if (stat.type === vscode.FileType.File) {
+					files.push(uri);
+				} else if (stat.type === vscode.FileType.Directory) {
+					const folderFiles = await getFilesInFolder(uri.fsPath);
+					files = files.concat(folderFiles);
+				}
+			}
+		} else if (vscode.window.activeTextEditor?.document.uri) {
+			files = [vscode.window.activeTextEditor.document.uri];
+		}
+
+		if (files.length === 0) {
+			vscode.window.showErrorMessage('No valid files selected for processing.');
 			return;
 		}
 
-		// Progress notification, this will remain until all files are processed
+		console.log(`Processing ${files.length} file(s)`); // Debugging message
+
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
 			title: `Processing ${files.length} file(s) with AI assistant...`,
-			cancellable: false // Ensure the process is not cancellable by user
+			cancellable: false
 		}, async (progress) => {
-
 			for (let i = 0; i < files.length; i++) {
-				const document = await vscode.workspace.openTextDocument(files[i]);
-				const text = document.getText();
+				const fileUri = files[i];
+				if (!fileUri) {
+					vscode.window.showErrorMessage(`File ${i + 1} is undefined. Skipping.`);
+					continue;
+				}
 
-				// Show progress update for each file
-				progress.report({ message: `Processing ${i + 1} of ${files.length} files...` });
+				progress.report({ message: `Processing file ${i + 1} of ${files.length}...` });
+				console.log(`Processing file ${i + 1} of ${files.length}`); // Debugging
 
 				try {
+					const document = await vscode.workspace.openTextDocument(fileUri);
+					const text = document.getText();
+
+					// Process with AI
 					const aiResponse = await processWithAI(text, apiKey);
 
+					// Apply the changes from the AI response
 					const edit = new vscode.WorkspaceEdit();
 					edit.replace(document.uri, new vscode.Range(
 						document.positionAt(0),
@@ -43,12 +69,14 @@ export function activate(context: vscode.ExtensionContext) {
 					await vscode.workspace.applyEdit(edit);
 
 					vscode.window.showInformationMessage(`File ${document.uri.fsPath} was processed by AI.`);
+
+					// Format the document after AI processing
+					await vscode.commands.executeCommand('editor.action.formatDocument', document);
+
 				} catch (error) {
-					vscode.window.showErrorMessage(`Error processing file ${document.uri.fsPath} with AI: ${error.message}`);
+					vscode.window.showErrorMessage(`Error processing file ${fileUri.fsPath}: ${error.message}`);
 				}
 			}
-
-			// Returning to ensure the progress dialog stays until processing completes
 			return;
 		});
 	});
@@ -74,6 +102,29 @@ async function getApiKey(): Promise<string | undefined> {
 	}
 
 	return apiKey;
+}
+
+async function getFilesInFolder(folderPath: string): Promise<vscode.Uri[]> {
+	let files: vscode.Uri[] = [];
+
+	async function readDirectory(directory: string): Promise<void> {
+		const dirEntries = await fs.promises.readdir(directory, { withFileTypes: true });
+
+		for (const entry of dirEntries) {
+			const fullPath = path.join(directory, entry.name);
+
+			if (entry.isDirectory()) {
+				// If the entry is a directory, recurse into it to get its files
+				await readDirectory(fullPath);
+			} else if (entry.isFile()) {
+				// If the entry is a file, add it to the files list
+				files.push(vscode.Uri.file(fullPath));
+			}
+		}
+	}
+
+	await readDirectory(folderPath);
+	return files;
 }
 
 async function processWithAI(text: string, apiKey: string): Promise<string> {
@@ -103,12 +154,7 @@ async function processWithAI(text: string, apiKey: string): Promise<string> {
 		}
 
 	} catch (error) {
-		if (error instanceof Error) {
-			vscode.window.showErrorMessage('Failed to process with AI: ' + error.message);
-		} else {
-			vscode.window.showErrorMessage('Failed to process with AI: An unknown error occurred.');
-		}
-
+		vscode.window.showErrorMessage('Failed to process with AI: ' + (error instanceof Error ? error.message : 'An unknown error occurred.'));
 		throw error;
 	}
 }

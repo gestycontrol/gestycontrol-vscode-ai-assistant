@@ -4,8 +4,12 @@
   "description": "Apply AI processing to multiple files via context menus",
   "version": "1.0.0",
   "publisher": "Gestycontrol",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gestycontrol/gestycontrol-vscode-ai-assistant.git"
+  },
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.93.0"
   },
   "activationEvents": [
     "onCommand:extension.processFilesFromExplorerContext",
@@ -28,7 +32,7 @@
         {
           "command": "extension.processFilesFromExplorerContext",
           "when": "explorerResourceIsFolder || resource",
-          "group": "navigation"
+          "group": "z_navigation"
         }
       ],
       "editor/title": [

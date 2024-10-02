@@ -45,10 +45,9 @@ export function activate(context: vscode.ExtensionContext) {
 						document.positionAt(0),
 						document.positionAt(text.length)
 					), aiResponse);
+
 					await vscode.workspace.applyEdit(edit);
-
 					await vscode.commands.executeCommand('editor.action.formatDocument', document);
-
 				} catch (exception) {
 					vscode.window.showWarningMessage(`Could not process file ${uri.fsPath}`);
 				}
@@ -115,7 +114,7 @@ async function processWithAI(text: string, apiKey: string, command: string): Pro
 		const response = await axios.post('https://api.openai.com/v1/chat/completions', {
 			model: 'gpt-4',
 			messages: [
-				{ role: 'user', content: `Please process the following code and ${command}. Use trailing commas when possible if the language supports it (never for function arguments). Avoid changing line breaks.\n\n${text}` }
+				{ role: 'user', content: `Please process the following code and ${command}. Use trailing commas when possible if the language supports it (never for function arguments).\n\n${text}` }
 			],
 			max_tokens: maxOutputTokens,
 			temperature: 0.7

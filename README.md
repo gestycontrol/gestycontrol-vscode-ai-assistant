@@ -1,71 +1,68 @@
-# gestycontrol-vscode-ai-assistant README
 
-This is the README for your extension "gestycontrol-vscode-ai-assistant". After writing up a brief description, we recommend including the following sections.
+# Gestycontrol AI Assistant
+
+## Overview
+
+The **Gestycontrol AI Assistant** is a Visual Studio Code extension that allows users to apply AI processing to multiple files via context menus. This extension integrates with OpenAI's API to improve the readability of code and perform other AI-driven transformations.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- Process multiple files selected in the Explorer with AI.
+- Process the current file from the editor with AI.
+- Customizable AI commands to tailor the output.
+- Recursively processes files within folders.
 
-For example if there is an image subfolder under your extension project workspace:
+## Installation
 
-\!\[feature X\]\(images/feature-x.png\)
+1. Install the extension from the VSCode marketplace (link will be provided once published).
+2. Open your workspace and configure your API key for the AI assistant.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Commands
 
-## Requirements
+The extension provides the following commands, accessible via context menus:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- `Process with AI`: Available in both the Explorer and Editor context menus. This command processes the selected files using AI.
 
-## Extension Settings
+## How to Use
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+1. Select one or more files in the VSCode Explorer or open a file in the editor.
+2. Right-click and select **Process with AI** from the context menu.
+3. Enter the command for AI in the input box, or use the default (`Improve its readability`).
+4. The selected files will be processed, and the results will be applied directly in the editor.
 
-For example:
+### Configuration
 
-This extension contributes the following settings:
+You need to set up an API key to use the AI functionality:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+1. After installing the extension, the extension will prompt you for your OpenAI API key.
+2. Enter the API key when prompted. You can update it later in your workspace settings (`aiAssistant.apiKey`).
 
-## Known Issues
+### Example Usage
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+For example, you can select a folder in the Explorer and apply AI processing to all files inside by choosing **Process with AI**.
 
-## Release Notes
+### Known Limitations
 
-Users appreciate release notes as you update your extension.
+- The extension requires an internet connection to work with the OpenAI API.
+- Processing large files might take longer, depending on the size and complexity of the code.
+- Recursive file processing will only work for valid text documents.
 
-### 1.0.0
+## Development
 
-Initial release of ...
+If you want to contribute or modify this extension:
 
-### 1.0.1
+1. Clone the repository.
+2. Run `npm install` to install the dependencies.
+3. Use `npm run compile` to build the project.
+4. Use `npm run watch` to continuously compile while making changes.
 
-Fixed issue #.
+### Scripts
 
-### 1.1.0
+- `compile`: Build the extension using webpack.
+- `watch`: Build the extension in watch mode.
+- `lint`: Run ESLint on the codebase.
+- `test`: Run tests using `vscode-test`.
 
-Added features X, Y, and Z.
+## License
 
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+This extension is licensed under the MIT License.

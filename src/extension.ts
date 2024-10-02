@@ -14,16 +14,19 @@ export function activate(context: vscode.ExtensionContext) {
 
 		let files: vscode.Uri[] = [];
 
-		if (uriList && uriList.length > 0) {
-			console.log(`Received ${uriList.length} URIs from the context menu`);
+		console.log(`Received URIs: ${uriList?.length || 0}`);
 
+		if (uriList && uriList.length > 0) {
 			for (const uri of uriList) {
 				const stat = await vscode.workspace.fs.stat(uri);
 
 				if (stat.type === vscode.FileType.File) {
+					console.log(`Found file: ${uri.fsPath}`);
 					files.push(uri);
 				} else if (stat.type === vscode.FileType.Directory) {
+					console.log(`Found directory: ${uri.fsPath}`);
 					const folderFiles = await getFilesInFolder(uri.fsPath);
+					console.log(`Found ${folderFiles.length} files in directory`);
 					files = files.concat(folderFiles);
 				}
 			}
@@ -31,12 +34,12 @@ export function activate(context: vscode.ExtensionContext) {
 			files = [vscode.window.activeTextEditor.document.uri];
 		}
 
+		console.log(`Total files to process: ${files.length}`);
+
 		if (files.length === 0) {
 			vscode.window.showErrorMessage('No valid files selected for processing.');
 			return;
 		}
-
-		console.log(`Processing ${files.length} file(s)`); // Debugging message
 
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
@@ -51,16 +54,13 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 
 				progress.report({ message: `Processing file ${i + 1} of ${files.length}...` });
-				console.log(`Processing file ${i + 1} of ${files.length}`); // Debugging
-
+				console.log(`Processing file ${i + 1} of ${files.length}`);
 				try {
 					const document = await vscode.workspace.openTextDocument(fileUri);
 					const text = document.getText();
 
-					// Process with AI
 					const aiResponse = await processWithAI(text, apiKey);
 
-					// Apply the changes from the AI response
 					const edit = new vscode.WorkspaceEdit();
 					edit.replace(document.uri, new vscode.Range(
 						document.positionAt(0),
@@ -70,13 +70,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 					vscode.window.showInformationMessage(`File ${document.uri.fsPath} was processed by AI.`);
 
-					// Format the document after AI processing
 					await vscode.commands.executeCommand('editor.action.formatDocument', document);
 
 				} catch (error) {
 					vscode.window.showErrorMessage(`Error processing file ${fileUri.fsPath}: ${error.message}`);
 				}
 			}
+
 			return;
 		});
 	});
@@ -114,10 +114,8 @@ async function getFilesInFolder(folderPath: string): Promise<vscode.Uri[]> {
 			const fullPath = path.join(directory, entry.name);
 
 			if (entry.isDirectory()) {
-				// If the entry is a directory, recurse into it to get its files
 				await readDirectory(fullPath);
 			} else if (entry.isFile()) {
-				// If the entry is a file, add it to the files list
 				files.push(vscode.Uri.file(fullPath));
 			}
 		}
